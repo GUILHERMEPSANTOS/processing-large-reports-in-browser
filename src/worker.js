@@ -1,6 +1,19 @@
-console.log("Eu estou aqui!");
-postMessage("Ready");
+import Service from "./service.js"
+
+const service = new Service();
 
 onmessage = ({ data }) => {
-  console.log("Olá sou o Worker", data);
-};
+    const { query, file } = data;
+
+    service.processFile({
+        query,
+        file,
+        onOcurrenceUpdate: (args) => {
+            postMessage({ eventType: "ocurrenceUpdate", ...args })
+        },
+        onProgress: (total) => {
+            postMessage({ eventType: "progress", total })
+        }
+    });
+}
+
