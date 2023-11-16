@@ -1,36 +1,72 @@
 export default class Controller {
-  #view;
-  #worker;
-
-  constructor({ view, worker }) {
-    this.#view = view;
-    this.#worker = worker;
-  }
-
-  static init(deps) {
-    const controller = new Controller(deps);
-    controller.init();
-    return controller;
-  }
-
-  init() {
-    this.#view.configureOnFileChange(this.#configureOnFileChange.bind(this));
-  }
-
-  #configureOnFileChange(file) {
-    this.#view.setFileSize(this.#formatBytes(file?.size ?? 0));
-    console.log(file);
-  }
-
-  #formatBytes(bytes) {
-    const units = ["B", "KB", "MB", "GB", "TB"];
-
-    let i = 0;
-
-    for (i; bytes >= 1024 && i < 4; i++) {
-      bytes /= 1024;
+    #view;
+    #worker;
+    #events = {
+        alive: () => { console.log("alive"); },
+        progress: ({ total }) => { this.#view.updateProgress(total); },
+        ocurrenceUpdate: (data) => { console.log(data); }
     }
 
-    return `${bytes.toFixed(2)} ${units[i]}}`;
-  }
+    constructor({ view, worker }) {
+        this.#view = view;
+        this.#worker = this.configureWorker(worker);
+    }
+
+    static init(deps) {
+        var controller = new Controller(deps);
+        controller.init();
+        return controller;
+    }
+
+    init() {
+        this.#view.configureOnFileChange(
+            this.configureOnFileChange.bind(this)
+        );
+
+        this.#view.configureOnFileSubmit(
+            this.configureOnFileSubmit.bind(this)
+        );
+    }
+
+    configureWorker(worker) {
+        worker.onmessage = ({ data }) => {
+            const eventType = data.eventType;
+            this.#events[eventType](data)
+        }
+
+        return worker;
+    }
+
+    configureOnFileChange(file) {
+        var formattedFileSize = this.#formatBytes(file)
+
+        this.#view.setFileSize(formattedFileSize)
+    }
+
+    configureOnFileSubmit({ description, file }) {
+        const query = {}
+        query["call description"] = new RegExp(
+            description, "i"
+        )
+
+        if (this.#view.isWorkerEnabled()) {
+            console.log("executing on worker thread!");
+            this.#worker.postMessage({ query, file });
+            return;
+        }
+
+        console.log("execution on main thread!");
+    }
+
+    #formatBytes({ size }) {
+        const units = ['B', 'KB', 'MB', 'GB', 'TB']
+
+        let i = 0
+
+        for (i; size >= 1024 && i < 4; i++) {
+            size /= 1024
+        }
+
+        return `${size.toFixed(2)} ${units[i]}`
+    }
 }
