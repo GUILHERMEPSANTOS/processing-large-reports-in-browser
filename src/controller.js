@@ -1,14 +1,22 @@
 export default class Controller {
     #view;
     #worker;
+    #service;
     #events = {
-        alive: () => { console.log("alive"); },
+        alive: () => { },
         progress: ({ total }) => { this.#view.updateProgress(total); },
-        ocurrenceUpdate: (data) => { console.log(data); }
+        ocurrenceUpdate: ({ found, linesLength, took }) => {
+            const [[key, value]] = Object.entries(found)
+
+            this.#view.updateDebugLog(
+                `found ${value} occurencies of ${key} - over ${linesLength} lines - took: ${took}`
+            );
+        }
     }
 
-    constructor({ view, worker }) {
+    constructor({ view, service, worker }) {
         this.#view = view;
+        this.#service = service;
         this.#worker = this.configureWorker(worker);
     }
 
@@ -53,6 +61,17 @@ export default class Controller {
             this.#worker.postMessage({ query, file });
             return;
         }
+
+        this.#service.processFile({
+            query,
+            file,
+            onProgress: (total) => {
+                this.#events.progress({ total })
+            },
+            onOcurrenceUpdate: (...args) => {
+                this.#events.ocurrenceUpdate(...args)
+            }
+        });
     }
 
     #formatBytes({ size }) {
