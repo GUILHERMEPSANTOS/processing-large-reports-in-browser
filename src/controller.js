@@ -50,12 +50,9 @@ export default class Controller {
         )
 
         if (this.#view.isWorkerEnabled()) {
-            console.log("executing on worker thread!");
             this.#worker.postMessage({ query, file });
             return;
         }
-
-        console.log("execution on main thread!");
     }
 
     #formatBytes({ size }) {
